@@ -121,7 +121,7 @@ ax.hist(lin[0], bins=20, range=(0,1), facecolor='red', histtype='step', linewidt
 ax.text(0.27,90,'$\\rm log_{10}(M_{\\rm star}/M{\\odot})=[10.5,10.9]$')
 
 
-obsdir = '/opt/claudia/ObsData/SAMI'
+obsdir = 'Plots/'
 common.savefig(obsdir, fig, "lambdaR_dist.pdf")
 
 xtit="$\\epsilon_{\\rm r_{50}}$"
@@ -165,7 +165,7 @@ common.savefig(obsdir, fig, "lambdaR_Eps_plane.pdf")
 
 #match GalaxyId with Group and SubGroupNumber
 def match_galid(gnl, sgnl):
-    galid, gn, sgn = np.loadtxt('/opt/claudia/EAGLE/Selection_RefL100N1504_z0.dat', unpack=True, usecols=[0,1,2])
+    galid, gn, sgn = np.loadtxt('/home/clagos/Trabajo/EAGLE/SelectionGalaxiesz0-L100N1504.dat', unpack=True, usecols=[0,1,2])
     galid_to_write = np.zeros(shape = len(gnl))
     g=0
     for a,b in zip(gnl, sgnl):
@@ -228,7 +228,7 @@ common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 50, 50
 ax.hist(successmatching, bins=3, range=(-0.5,2.5), facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k')
 
 plt.xticks([0,1,2], x_values)
-obsdir = '/opt/claudia/ObsData/SAMI/Classification/Plots/'
+obsdir = 'Classification/Plots/'
 common.savefig(obsdir, fig, "MatchesInClass.pdf")
 
 
@@ -257,13 +257,12 @@ for i in range(0,len(matches)):
     ax.text(xpos, ypos, 'Match succ = %s' % text_insert[i])
     plot_kin_class(ax, match=matches[i])
     if(i <= 1):
-       plt.xticks([0,1,2,3,4,5]," ")
+       plt.xticks([0,1,2,3,4,5],[" ", " "," "," "," "," "])
     else:
        plt.xticks([0,1,2,3,4,5], x_values)
 
     plt.yticks([])
     
-obsdir = '/opt/claudia/ObsData/SAMI/Classification/Plots/'
 common.savefig(obsdir, fig, "KinClassVsMatchingSuccess.pdf")
 
 ###################################################################
@@ -290,7 +289,7 @@ for i in range(0,len(matches)):
     plot_elip_class(ax, class2, match=matches[i], color='red')
     plot_elip_class(ax, class3, match=matches[i], color='salmon')
 
-obsdir = '/opt/claudia/ObsData/SAMI/Classification/Plots/'
+obsdir = 'Classification/Plots/'
 common.savefig(obsdir, fig, "EllipticityInClass.pdf")
 
 
@@ -300,7 +299,6 @@ common.savefig(obsdir, fig, "EllipticityInClass.pdf")
 # Analysis of merger history of different kinematic classes
 
 mergerdata = np.loadtxt('MergerHistoryCumulative.dat')
-print mergerdata.shape
 def find_classification(selective = True):
     if(selective):
        matchedobjs = np.where(successmatching >= 0)
@@ -310,7 +308,6 @@ def find_classification(selective = True):
        finalgalid = galid[matchedobjs]
        for i in range(0, len(galid[matchedobjs])):
            finalclass[i] = np.median(classificationin[i,:])
-       print(finalclass)
        matched = np.in1d(galidl, finalgalid)
        match = np.where(matched == True)
        finalgn = gn[match]
@@ -331,12 +328,11 @@ mergerhist_srs = np.zeros(shape = (12,len(finalgn)))
 for i in range(0,len(finalgn)):
     match = np.where((mergerdata[:,0] == finalgn[i]) & (mergerdata[:,1] == finalsgn[i]))
     mergerhist_srs[0:8,i] = mergerdata[match,2:10]
-    mergerhist_srs[8,i] = np.sum(mergerdata[match,3:6]) #all minor mergers
-    mergerhist_srs[9,i] = np.sum(mergerdata[match,6:9]) #all major mergers
-    mergerhist_srs[10,i] = mergerdata[match,3] + mergerdata[match,6] #dry mergers
-    mergerhist_srs[11,i] = mergerdata[match,4] + mergerdata[match,5] + mergerdata[match,7] + mergerdata[match,8] #wet mergers
+    mergerhist_srs[8,i]   = np.sum(mergerdata[match,3:6]) #all minor mergers
+    mergerhist_srs[9,i]   = np.sum(mergerdata[match,6:9]) #all major mergers
+    mergerhist_srs[10,i]  = mergerdata[match,3] + mergerdata[match,6] #dry mergers
+    mergerhist_srs[11,i]  = mergerdata[match,4] + mergerdata[match,5] + mergerdata[match,7] + mergerdata[match,8] #wet mergers
 
-print(mergerhist_srs[:,0])
 ############################
 # plot distribution of kinematic classes depending on merger history
 subplots = (611, 612, 613, 614, 615, 616)
@@ -374,14 +370,192 @@ for  i in range(0,len(mergers_explore)):
 
     plot_kin_class_mergers(ax, finalclass[ind], color=colors[i])
     if(i <= 4):
-       plt.xticks([0,1,2,3,4,5]," ")
+       plt.xticks([0,1,2,3,4,5],[" ", " "," "," "," "," "])
     else:
        plt.xticks([0,1,2,3,4,5], x_values)
 
 common.savefig(obsdir, fig, "MergerHistoryDistributionKinClasses.pdf")
 
 
+################
+#find distribution of gas fractions and mass ratios of the last merger of prolate galaxies
+
+def find_props_last_merger(gn, sgn, merger_thresh = 0):
+    groupnumbers = np.loadtxt('GroupNumberHistory-Ref-L100.dat')
+    subgroupnumbers = np.loadtxt('SubGroupNumberHistory-Ref-L100.dat')
+    gasfractions = np.loadtxt('GasFractionMergerHistory-Ref-L100.dat')
+    massfractions = np.loadtxt('MergerRatioHistory-Ref-L100.dat')
+    snap, z, lbt = np.loadtxt('SnapshotsEAGLE.dat', unpack = True, usecols = (0,1,2))
+
+    gasfracs_last_merger = np.zeros(shape = len(gn)) 
+    massrat_last_merger = np.zeros(shape = len(gn))
+    lbt_last_merger = np.zeros(shape = len(gn))
+    z0gn = groupnumbers[:,0]
+    z0sgn = subgroupnumbers[:,0]
+
+    #loop for all input galaxies and find their last merger
+    for i in range(len(gn)):
+        match = np.where((z0gn == gn[i]) & (z0sgn == sgn[i]))
+        massfracthisgal = massfractions[match[0],:]
+        gasfracthisgal = gasfractions[match[0],:]
+        lastmer = 0
+        s = 0
+        while ((lastmer <= merger_thresh) & (s < 20)):
+               lastmer = massfracthisgal[0,s] 
+               s = s + 1
+        gasfracs_last_merger[i] = gasfracthisgal[0,s-1]
+        massrat_last_merger[i] = massfracthisgal[0,s-1]
+        lbt_last_merger[i] = lbt[s-1]
+
+    #apply maximum gas fraction
+    ind = np.where(gasfracs_last_merger > 1.5)
+    gasfracs_last_merger[ind] = 1.5
+    return(massrat_last_merger, gasfracs_last_merger, lbt_last_merger)
+
+def info_last_merger_kinclass(kinclass, gn, sgn, selection=0, merger_thresh = 0):
+    prolates = np.where(kinclass == selection)
+    gnpro = gn[prolates]
+    sgnpro = sgn[prolates]
+    props = np.zeros(shape = (3, len(gnpro)))
+    (massfrac_pro, gasfrac_pro, lbt_pro) = find_props_last_merger(gnpro, sgnpro, merger_thresh = merger_thresh)
+    props[0,:] = massfrac_pro[:]
+    props[1,:] = gasfrac_pro[:]
+    props[2,:] = lbt_pro[:]
+
+    return props
+
+############################
+# plot distribution of merger properties of kinematic classes
+subplots = (311, 312, 313)
+fig = plt.figure(figsize=(3,7))
+plt.subplots_adjust(left=0.25, bottom=0.17)
+kinclasses = [3,2,1,0] #,1,2,3]
+colors = ['Chocolate', 'YellowGreen', 'SteelBlue', 'DarkMagenta']
+labels = ['Prol', '2$\sigma$', 'RSR', 'FSR'] #, '2$\sigma$', 'Prol']
+
+props=[0,1,3]
+ymin = (0.17, 0.18, 0)
+xmin = (0, 0, 1)
+xmax = (1, 1.5, 12.)
+ymax = (1.05, 1.05, 1.05)
+ticks = (0.2, 0.2, 2)
+xtit=["$M_{\\star,\\rm sec}/M_{\\star,\\rm prim}$", "$M_{\\rm SF,total}/M_{\\star,\\rm total}$", "lookback time [Gyr]"]
+ytit="Cumulative dist."
+
+for p in range(0,3):
+    ax = fig.add_subplot(subplots[p])
+    common.prepare_ax(ax, xmin[p], xmax[p], ymin[p], ymax[p], xtit[p], ytit, locators=(ticks[p], ticks[p], 100, 100))
+    for i in range(0,len(kinclasses)):
+        props = info_last_merger_kinclass(finalclass, finalgn, finalsgn, selection = kinclasses[i])
+        true_mergers = np.where(props[0,:] > 0)
+        xin = props[p,true_mergers]
+        ax.hist(xin[0], bins=15, range=(xmin[p], xmax[p]), density = True, cumulative = True, facecolor=colors[i], histtype='step', linewidth=2, alpha = 0.85, fill=False, edgecolor=colors[i], label=labels[i])
+        ax.axes.yaxis.set_ticks([])
+    if p == 0:
+       xin = [0.3, 0.3]
+       yin = [0, 1.05]
+       ax.plot(xin, yin, linestyle='dotted', color='k')
+       ax.arrow(0.3, 0.95, 0.13, 0)
+       ax.text(0.3,0.965, 'major', color='k')
+       xin = [0.1, 0.1]
+       ax.plot(xin, yin, linestyle='dotted', color='k')
+       ax.arrow(0.1, 0.95, 0.07, 0)
+       ax.arrow(0.3, 0.95, -0.07, 0)
+       ax.text(0.11,0.965, 'minor', color='k')
+    if p == 1:
+       xin = [0.1, 0.1]
+       yin = [0, 1.05]
+       ax.plot(xin, yin, linestyle='dotted', color='k')
+       ax.arrow(0.1, 0.95, 0.13, 0)
+       ax.text(0.1,0.965, 'wet', color='k')
+
+       common.prepare_legend(ax, colors, loc='lower right')
+plt.tight_layout()
+common.savefig(obsdir, fig, "CumDistributionMergerParametersKinClasses.pdf")
+
+fig = plt.figure(figsize=(3,7))
+plt.subplots_adjust(left=0.25, bottom=0.1)
+ymin =  (0.1, 0.1, 0.1) #0.29, 0.3, 0.04)
+ymax = (6, 5, 0.5)
+ytit="PDF"
+
+for p in range(0,3):
+    ax = fig.add_subplot(subplots[p])
+    common.prepare_ax(ax, xmin[p], xmax[p], ymin[p], ymax[p], xtit[p], ytit, locators=(ticks[p], ticks[p], 15, 15))
+    for i in range(0,len(kinclasses)):
+        props = info_last_merger_kinclass(finalclass, finalgn, finalsgn, selection = kinclasses[i])
+        true_mergers = np.where(props[0,:] > 0)
+        xin = props[p,true_mergers]
+        ax.hist(xin[0], bins=15, range=(xmin[p], xmax[p]), density = True, facecolor=colors[i], histtype='step', linewidth=2, alpha = 0.85, fill=False, edgecolor=colors[i], label=labels[i])
+    if p == 0:
+       xin = [0.3, 0.3]
+       yin = [0, 6]
+       ax.plot(xin, yin, linestyle='dotted', color='k')
+       xin = [0.1, 0.1]
+       ax.plot(xin, yin, linestyle='dotted', color='k')
+       ax.arrow(0.3, 5.1, 0.13, 0, head_width=0.12, head_length=0.025)
+       ax.text(0.3,5.3, 'major', color='k')
+       ax.arrow(0.1, 5.1, 0.07, 0, head_width=0.12, head_length=0.025)
+       ax.arrow(0.3, 5.1, -0.07, 0, head_width=0.12, head_length=0.025)
+       ax.text(0.11,5.3, 'minor', color='k')
+    if p == 1:
+       xin = [0.1, 0.1]
+       yin = [0, 5]
+       ax.plot(xin, yin, linestyle='dotted', color='k')
+       ax.arrow(0.1, 4.2, 0.18, 0, head_width=0.12, head_length=0.025)
+       ax.text(0.1,4.4, 'wet', color='k')
+       common.prepare_legend(ax, colors, loc='upper right')
+plt.tight_layout()
+common.savefig(obsdir, fig, "DistributionMergerParametersKinClasses.pdf")
+
+############### properties of last major merger #########################
+
+thresholds = [0.099, 0.299]
+titles = ['Minor', 'Major']
+kinclasses = [3,1,0] #,1,2,3]
+colors = ['Chocolate', 'SteelBlue', 'DarkMagenta']
+labels = ['Prol', 'RSR', 'FSR'] #, '2$\sigma$', 'Prol']
+
+
+for t in range(0,len(thresholds)):
+    fig = plt.figure(figsize=(3,7))
+    plt.subplots_adjust(left=0.25, bottom=0.1)
+    ymin =  (0.1, 0.1, 0.1) #0.29, 0.3, 0.04)
+    ymax = (6, 4, 0.4)
+    ytit="PDF"
    
+    for p in range(0,3):
+        ax = fig.add_subplot(subplots[p])
+        common.prepare_ax(ax, xmin[p], xmax[p], ymin[p], ymax[p], xtit[p], ytit, locators=(ticks[p], ticks[p], 15, 15))
+        for i in range(0,len(kinclasses)):
+            if(t == 0):
+               ind = np.where(mergerhist_srs[9,:] == 0)
+               props = info_last_merger_kinclass(finalclass[ind], finalgn[ind], finalsgn[ind], selection = kinclasses[i], merger_thresh = thresholds[t])
+            else:
+               props = info_last_merger_kinclass(finalclass, finalgn, finalsgn, selection = kinclasses[i], merger_thresh = thresholds[t])
+            true_mergers = np.where(props[0,:] > 0)
+            xin = props[p,true_mergers]
+            ax.hist(xin[0], bins=15, range=(xmin[p], xmax[p]), density = True, facecolor=colors[i], histtype='step', linewidth=2, alpha = 0.85, fill=False, edgecolor=colors[i], label=labels[i])
+        if p == 0:
+           xin = [0.3, 0.3]
+           yin = [0, 6]
+           ax.plot(xin, yin, linestyle='dotted', color='k')
+           xin = [0.1, 0.1]
+           ax.plot(xin, yin, linestyle='dotted', color='k')
+           ax.arrow(0.3, 5.1, 0.13, 0, head_width=0.12, head_length=0.025)
+           ax.text(0.3,5.3, 'major', color='k')
+           ax.arrow(0.1, 5.1, 0.07, 0, head_width=0.12, head_length=0.025)
+           ax.arrow(0.3, 5.1, -0.07, 0, head_width=0.12, head_length=0.025)
+           ax.text(0.11,5.3, 'minor', color='k')
+        if p == 1:
+           xin = [0.1, 0.1]
+           yin = [0, 5]
+           ax.plot(xin, yin, linestyle='dotted', color='k')
+           ax.arrow(0.1, 3.2, 0.18, 0, head_width=0.12, head_length=0.025)
+           ax.text(0.1,3.4, 'wet', color='k')
+           common.prepare_legend(ax, colors, loc='upper right')
+           ax.text(0.55,ymax[p]+0.05, titles[t], color='k')
 
-
+    plt.tight_layout()
+    common.savefig(obsdir, fig, "Distribution" + titles[t] + "MergerParametersKinClasses.pdf")
 

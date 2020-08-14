@@ -1,6 +1,8 @@
 import numpy as np
 import common
 
+AdoptProcedureSimSpin = False
+
 mlow = 0
 mupp = 1
 dm = 0.05
@@ -10,9 +12,49 @@ xmf = mbins + dm/2.0
 catID, lambdaR_SAMI_nocorr = np.loadtxt('jvds_stelkin_cat_v012_mge_private.dat', unpack=True, usecols=[0, 41])
 ids_table = np.arange(0,len(lambdaR_SAMI_nocorr))
 mstar_SAMI, lambdaR_SAMI, ellip_SAMI, sigma_SAMI = np.loadtxt('jvds_stelkin_cat_v012_mge_seecorr_kh20_v190620_private.dat', unpack=True, usecols=[6, 41, 15, 35])
-gn, sgn, mstar_eag, lambdaR_eag_eo, lambdaR_eag, ellip_eag_eo, ellip_eag, sigma_eag = np.loadtxt('LambdaGalaxiesz0_RefL100N1504.dat', unpack=True, usecols=[0,1,2,4,5,11,12,14])
-galidl = np.loadtxt('GalaxyIDsLambdaGalaxiesz0_RefL100N1504.dat', unpack=True, usecols=[0])
+gn, sgn, mstar_eag, lambdaR_eag_eo, lambdaR_eag, ellip_eag_eo, ellip_eag, sigma_eag, r50_eag = np.loadtxt('LambdaGalaxiesz0_RefL100N1504.dat', unpack=True, usecols=[0,1,2,4,5,11,12,14,6])
+#gn, sgn, mstar_eag, lambdaR_eag_eo, lambdaR_eag, ellip_eag_eo, ellip_eag, sigma_eag = np.loadtxt('EAGLE_L100N1504_ForLuca.dat', unpack=True, usecols=[0,1,2,12,13,8,9,6])
 
+
+def calculate_galid(gng,sgng):
+    gid, gn, sgn = np.loadtxt('/opt/claudia/EAGLE/Selection_Galaxies_Forensics_L0100N1504z0.dat', unpack=True, usecols=[0,2,3])
+    galid = np.zeros(shape = len(gng))
+    for i in range(0,len(gng)):
+        match = np.where((gn == gng[i]) & (sgn == sgng[i]))
+        galid[i] = gid[match]
+
+    return galid
+
+
+
+galidl = calculate_galid(gn,sgn)
+
+
+if(AdoptProcedureSimSpin == True):
+   ind = np.where(mstar_eag >= 1e10)
+   gn = gn[ind]
+   sgn = sgn[ind]
+   mstar_eag = mstar_eag[ind]
+   galidl = galidl[ind]
+   lambdaR_eag_eo = lambdaR_eag_eo[ind]
+   ellip_eag_eo = ellip_eag_eo[ind]
+   
+   def take_properties_simspin(galid, inclination=60):
+       gid, inc, r50, e50,  l50 = np.loadtxt('Classification/keh_EAGLE_kinematics_ASGR_method.txt', unpack=True, usecols=[0,1,2,3,6])
+       r50g = np.zeros(shape = len(galid))
+       er50g = np.zeros(shape = len(galid))
+       l50g = np.zeros(shape = len(galid))
+   
+       for i in range(0,len(galidl)):
+           match = np.where((gid == galid[i]) & (inc == inclination))
+           if(len(gid[match]) > 0):
+              r50g[i] = r50[match]
+              er50g[i] = e50[match]
+              l50g[i] = l50[match]
+           
+       return (r50g, er50g, l50g)
+  
+   (r50_eag, ellip_eag, lambdaR_eag) = take_properties_simspin(galidl, inclination=60) 
 
 massbins = [10.0,10.1,10.2,10.3,10.4,10.5,10.6,10.7,10.8,10.9]
 ind = np.where((mstar_SAMI >= 10) & (mstar_SAMI <=11))
@@ -129,18 +171,29 @@ ytit="PDF"
 
 fig = plt.figure(figsize=(5,7.5))
 plt.subplots_adjust(left=0.18, bottom=0.17)
-xmin, xmax, ymin, ymax = 0, 0.4, 0, 7.5
+xmin, xmax, ymin, ymax = 0, 0.6, 0, 7.5
 ax = fig.add_subplot(211)
 common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(0.1, 0.1, 1, 1))
 
-ind = np.where((mstar_SAMI >= 10) & (mstar_SAMI <= 10.9) & (lambdaR_SAMI >= 0) & (lambdaR_SAMI <= 0.08 + ellip_SAMI/4.0) & (ellip_SAMI <=0.4))
-ax.hist(ellip_SAMI[ind], bins=20, range=(0,0.5), density=True, facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k',label='SAMI')
-ind = np.where((mstar_SAMI >= 10) & (mstar_SAMI <= 10.9) & (lambdaR_SAMI >= 0) & (lambdaR_SAMI_nocorr <= 0.08 + ellip_SAMI/4.0) & (ellip_SAMI <=0.4))
-ax.hist(ellip_SAMI[ind], bins=20, range=(0,0.5), density=True, edgecolor='blue', histtype='step', linewidth=2, alpha=0.85, label='SAMI no corr')
+def classify_srs(l,e):
+    classification = np.zeros(shape = len(l))
+    sr = np.where((l < 0.08 + e/4.0) & (e <= 0.4))
+    classification[sr] = 1
+    sr = np.where((l < 0.18) & (e > 0.4))
+    classification[sr] = 1
+    return classification
 
-ind = np.where((props_selected_eagle[0,:] >= 10) & (props_selected_eagle[0,:] <= 10.9) & (props_selected_eagle[1,:] <= 0.08 + props_selected_eagle[2,:]/4.0) & (props_selected_eagle[2,:] <= 0.4))
+sami_class = classify_srs(lambdaR_SAMI, ellip_SAMI)
+sami_class_nocorr = classify_srs(lambdaR_SAMI_nocorr, ellip_SAMI)
+ind = np.where((mstar_SAMI >= 10) & (mstar_SAMI <= 10.9) & (lambdaR_SAMI >= 0) & (sami_class > 0))
+ax.hist(ellip_SAMI[ind], bins=20, range=(xmin,xmax), density=True, facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k',label='SAMI')
+ind = np.where((mstar_SAMI >= 10) & (mstar_SAMI <= 10.9) & (lambdaR_SAMI >= 0) & (sami_class_nocorr > 0))
+ax.hist(ellip_SAMI[ind], bins=20, range=(xmin,xmax), density=True, edgecolor='blue', histtype='step', linewidth=2, alpha=0.85, label='SAMI no corr')
+
+eagle_class = classify_srs(props_selected_eagle[1,:], props_selected_eagle[2,:])
+ind = np.where((props_selected_eagle[0,:] >= 10) & (props_selected_eagle[0,:] <= 10.9) & (eagle_class > 0))
 ein = props_selected_eagle[2,ind]
-ax.hist(ein[0], bins=20, range=(0,0.5), density=True, facecolor='red', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k', label='EAGLE')
+ax.hist(ein[0], bins=20, range=(xmin,xmax), density=True, facecolor='red', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k', label='EAGLE')
 common.prepare_legend(ax, ['b','b','r'], loc='upper left')
 
 ax = fig.add_subplot(212)
@@ -148,14 +201,14 @@ xtit="$\\sigma_{\\rm r_{50}}$"
 xmin, xmax, ymin, ymax = 50, 240, 0, 0.035
 common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(25, 25, 0.01, 0.01))
 
-ind = np.where((mstar_SAMI >= 10) & (mstar_SAMI <= 10.9) & (lambdaR_SAMI >= 0) & (lambdaR_SAMI <= 0.08 + ellip_SAMI/4.0) & (ellip_SAMI <=0.4) & (sigma_SAMI > 0))
+ind = np.where((mstar_SAMI >= 10) & (mstar_SAMI <= 10.9) & (lambdaR_SAMI >= 0) & (sami_class > 0))
 ax.hist(sigma_SAMI[ind], bins=20, range=(50,240), density=True, facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k',label='SAMI')
-ind = np.where((mstar_SAMI >= 10) & (mstar_SAMI <= 10.9) & (lambdaR_SAMI >= 0) & (lambdaR_SAMI_nocorr <= 0.08 + ellip_SAMI/4.0) & (ellip_SAMI <=0.4) & (sigma_SAMI > 0))
+ind = np.where((mstar_SAMI >= 10) & (mstar_SAMI <= 10.9) & (lambdaR_SAMI >= 0) & (sami_class_nocorr > 0))
 ax.hist(sigma_SAMI[ind], bins=20, range=(50,240), density=True, edgecolor='blue', histtype='step', linewidth=2, alpha=0.85, label='SAMI no corr')
-ind = np.where((props_selected_eagle[0,:] >= 10) & (props_selected_eagle[0,:] <= 10.9) & (props_selected_eagle[1,:] <= 0.08 + props_selected_eagle[2,:]/4.0) & (props_selected_eagle[2,:] <= 0.4))
+ind = np.where((props_selected_eagle[0,:] >= 10) & (props_selected_eagle[0,:] <= 10.9) & (eagle_class > 0))
 ein = props_selected_eagle[3,ind]
 galidsmatched = props_selected_eagle[4,ind]
-ax.hist(ein[0], bins=20, range=(60,180), density=True, facecolor='red', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k', label='EAGLE')
+ax.hist(ein[0], bins=20, range=(50,240), density=True, facecolor='red', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k', label='EAGLE')
 
 common.savefig(obsdir, fig, "lambdaR_Eps_plane.pdf")
 
@@ -175,60 +228,147 @@ def match_galid(gnl, sgnl):
            g = g + 1
     return galid_to_write
 
-def obtain_ellipticity_and_lambda(galid):
-    props = np.zeros(shape = (2,len(galid)))
+def obtain_ellipticity_and_lambda(galid, inclination=60):
+    props = np.zeros(shape = (3,len(galid)))
+    props2 = np.zeros(shape = (5,len(galid)))
+
+    gid, inc, r50, e50,  l50 = np.loadtxt('Classification/keh_EAGLE_kinematics_ASGR_method.txt', unpack=True, usecols=[0,1,2,3,6])
+    for i in range(0,len(galid)):
+        match = np.where((gid == galid[i]) & (inc == inclination))
+        if(len(gid[match]) > 0):
+           props[0,i] = l50[match]
+           props[1,i] = e50[match]
+           props[2,i] = r50[match]
     for i in range(0,len(galid)):
         match = np.where(galidl == galid[i])
         if(len(galidl[match]) > 0):
-           props[0,i] = lambdaR_eag_eo[match]
-           props[1,i] = ellip_eag_eo[match]
-    return props
+           props2[0,i] = lambdaR_eag_eo[match]
+           props2[1,i] = ellip_eag_eo[match]
+           props2[2,i] = r50_eag[match]
+           props2[3,i] = gn[match]
+           props2[4,i] = sgn[match]
+
+    return (props, props2)
 
 #read table with classification
-galid, class1, class2, class3 = np.loadtxt('Classification/Classification.txt', unpack=True, usecols=[0,1,3,5])
+galid, class1, class2, class3, class4, class5 = np.loadtxt('Classification/Classification.txt', unpack=True, usecols=[0,1,3,5,7,9])
 commonids = np.in1d(galid, galidsmatched)
 matched = np.where(commonids == True)
-#print(galid[matched])
 
+gnsr, sgnsr = np.loadtxt('SlowRotatorsEAGLE.txt', unpack=True, usecols=[0,1])
+galidsr = calculate_galid(gnsr, sgnsr)
+#find missing IDs
+missing = 0
+found = 0
+ids_missing = galidsr
+for i in range(0,len(galidsr)):
+    match = np.where(galid == galidsr[i])
+    if len(galid[match]) < 1:
+       ids_missing[i] = galidsr[i]
+       missing = missing + 1
+    else:
+       found = found + 1
+       ids_missing[i] = 0
+
+
+Nclassifiers = 5
 all_classified_srs = np.in1d(galidl, galid)
 #print(all_classified_srs)
 #for a,b,c in zip(galid, ellip_eag_eo[all_classified_srs], ellip_eag[all_classified_srs]):
 #    print(a,b,c)
 
 
-classification = np.zeros(shape = (len(galid), 3))
+classification = np.zeros(shape = (len(galid), Nclassifiers))
 classification[:,0] = class1
 classification[:,1] = class2
 classification[:,2] = class3
+classification[:,3] = class4
+classification[:,4] = class5
+classification = classification.astype(int)
 
-props = obtain_ellipticity_and_lambda(galid)
+(props, props2) = obtain_ellipticity_and_lambda(galid, inclination=60)
+(props3, props2) = obtain_ellipticity_and_lambda(galid, inclination=75)
+
+#select outliers:
+ind = np.where((props[1,:] > 0.5) & (props2[1,:] < 0.2))
+b =  props2[3,ind]
+c = props2[4,ind]
+d = props2[2,ind]
+for a,b,c,d in zip(galid[ind], b[0], c[0], d[0]):
+    print(a,b,c,d)
+
+print(np.median(props2[2,:]))
+ind = np.where(props2[1,:]/props[1,:] < 0.5)
+print(np.median(props2[2,ind]))
+ind = np.where(props2[1,:]/props[1,:] < 0.35)
+print(np.median(props2[2,ind]))
+ind = np.where(props2[1,:]/props[1,:] < 0.2)
+print(np.median(props2[2,ind]))
+ind = np.where(props2[1,:]/props[1,:] < 0.1)
+print(np.median(props2[2,ind]))
+
+ind = np.where(props2[1,:]/props[1,:] > 0.5)
+print(np.median(props2[2,ind]))
+ind = np.where(props2[1,:]/props[1,:] > 1)
+print(np.median(props2[2,ind]))
+
+#plot ellipticities and lambdaR for the two catalogues
+xtit="$\\lambda_{\\rm r_{50}}$ edge-on claudia"
+ytit="$\\lambda_{\\rm r_{50}}$ 75deg kate"
+fig = plt.figure(figsize=(4,7))
+plt.subplots_adjust(left=0.25, bottom=0.17)
+xmin, xmax, ymin, ymax = 0,0.2,0,0.2
+ax = fig.add_subplot(311)
+common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(0.1, 0.1, 0.1, 0.1))
+ax.plot(props2[0,:], props3[0,:], 'ko', alpha=0.5)
+#ax.hexbin(props2[0,:], props3[0,:], props2[2,:], xscale='linear', yscale='linear', gridsize=(30,30), cmap='Spectral', mincnt=0)
+ax.plot([0,0.2],[0,0.2],linestyle='solid')
+ax = fig.add_subplot(312)
+xtit="$\\epsilon_{\\rm r_{50}}$ edge-on claudia"
+ytit="$\\epsilon_{\\rm r_{50}}$ 75deg kate"
+xmin, xmax, ymin, ymax = 0,1,0,1
+common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(0.2, 0.2, 0.2, 0.2))
+ax.plot(props2[1,:], props3[1,:], 'ko', alpha=0.5)
+#im = ax.hexbin(props2[1,:], props3[1,:], props2[2,:], xscale='linear', yscale='linear', gridsize=(20,20), cmap='Spectral', mincnt=0)
+ax.plot([0,1],[0,1],linestyle='solid')
+
+ax = fig.add_subplot(313)
+xtit="${\\rm r_{50}}/\\rm kpc$ claudia"
+ytit="${\\rm r_{50}}$ kate"
+xmin, xmax, ymin, ymax = 0,10,0,10
+common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 1, 1))
+ax.plot(props2[2,:], props3[2,:], 'ko', alpha=0.5)
+ax.plot([0,10],[0,10],linestyle='solid')
+#cbar_ax = fig.add_axes([0.86, 0.4, 0.025, 0.25])
+#cbar = fig.colorbar(im, cax=cbar_ax)
+#cbar.ax.set_ylabel('$\\rm r_{\\rm 50}/kpc$')
+
+obsdir = 'Classification/Plots/'
+plt.tight_layout()
+common.savefig(obsdir, fig, "TestEllipticitiesAndLambdaR.pdf")
+
+
 #determine the number of galaxies that have three matches, two matches, or all different answers, use flags=2, 1, 0 to determine this
 successmatching = np.zeros(shape = (len(galid)))
 successmatching[:] = -1
 
 for i in range(0,len(successmatching)):
-    if((class1[i] == class2[i]) & (class2[i] == class3[i])):
-        successmatching[i] = 2
-    elif((class1[i] == class2[i]) | (class2[i] == class3[i]) | (class1[i] == class3[i])):
-        successmatching[i] = 1
-    elif((class1[i] != class2[i]) & (class2[i] != class3[i]) & (class1[i] != class3[i])):
-        successmatching[i] = 0
+    successmatching[i] = Nclassifiers - len(np.unique(classification[i,:]))
 
 ###############################################################################3
 #plot success rate of matching procedure
 
 xtit="Matching success"
 ytit="N"
-x_values = ['$0\%$', '$66\%$', '$100\%$']
+x_values = ['$0$', '$0.4$', '$0.6$', '$0.8$','$1$']
 fig = plt.figure(figsize=(3,5))
 plt.subplots_adjust(left=0.25, bottom=0.17)
-xmin, xmax, ymin, ymax = -0.5, 2.5, 0, 150
+xmin, xmax, ymin, ymax = -0.5, 4.5, 0, 105
 ax = fig.add_subplot(111)
 common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 50, 50))
-ax.hist(successmatching, bins=3, range=(-0.5,2.5), facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k')
+ax.hist(successmatching, bins=5, range=(-0.5,4.5), facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k')
 
-plt.xticks([0,1,2], x_values)
-obsdir = 'Classification/Plots/'
+plt.xticks([0,1,2,3,4], x_values)
 common.savefig(obsdir, fig, "MatchesInClass.pdf")
 
 
@@ -241,22 +381,25 @@ x_values = ['FSR', 'RSR', '2$\sigma$', 'Prol','Uncl','R']
 fig = plt.figure(figsize=(3,5))
 plt.subplots_adjust(left=0.2, bottom=0.15)
 xmin, xmax, ymin, ymax = -0.5, 2.5, 0, 1
+colors = ['orange', 'red', 'salmon', 'Crimson','DarkRed']
 def plot_kin_class(ax, match=0):
     ind = np.where(successmatching[:] == match)
-    ax.hist(class1[ind], bins=6, range=(-0.5,5.5), density=True, facecolor='orange', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k')
-    ax.hist(class2[ind], bins=6, range=(-0.5,5.5), density=True, facecolor='red', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k')
-    ax.hist(class3[ind], bins=6, range=(-0.5,5.5), density=True, facecolor='salmon', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k')
+    for i in range(0,Nclassifiers):
+        y = classification[ind, i]
+        ax.hist(y[0], bins=6, range=(-0.5,5.5), density=True, facecolor=colors[i], histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k')
+    #ax.hist(class2[ind], bins=6, range=(-0.5,5.5), density=True, facecolor='red', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k')
+    #ax.hist(class3[ind], bins=6, range=(-0.5,5.5), density=True, facecolor='salmon', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k')
 
-subplots = (311, 312, 313)
-matches = (0, 1, 2)
-text_insert = ['$0\%$', '$66\%$', '$100\%$']
+subplots = (411, 412, 413, 414)
+matches = (1, 2, 3, 4)
+text_insert = ['$40\%$', '$60\%$', '$80\%$', '$100\%$']
 xpos, ypos = xmax - 0.75 * (xmax - xmin)/2.0, ymax - 0.15 * (ymax - ymin)
 for i in range(0,len(matches)):
     ax = fig.add_subplot(subplots[i])
     common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 50, 50))
     ax.text(xpos, ypos, 'Match succ = %s' % text_insert[i])
     plot_kin_class(ax, match=matches[i])
-    if(i <= 1):
+    if(i < len(matches)-1):
        plt.xticks([0,1,2,3,4,5],[" ", " "," "," "," "," "])
     else:
        plt.xticks([0,1,2,3,4,5], x_values)
@@ -288,6 +431,8 @@ for i in range(0,len(matches)):
     plot_elip_class(ax, class1, match=matches[i], color='orange')
     plot_elip_class(ax, class2, match=matches[i], color='red')
     plot_elip_class(ax, class3, match=matches[i], color='salmon')
+    plot_elip_class(ax, class4, match=matches[i], color='crimson')
+    plot_elip_class(ax, class5, match=matches[i], color='DarkRed')
 
 obsdir = 'Classification/Plots/'
 common.savefig(obsdir, fig, "EllipticityInClass.pdf")
@@ -301,13 +446,14 @@ common.savefig(obsdir, fig, "EllipticityInClass.pdf")
 mergerdata = np.loadtxt('MergerHistoryCumulative.dat')
 def find_classification(selective = True):
     if(selective):
-       matchedobjs = np.where(successmatching >= 0)
+       matchedobjs = np.where(successmatching > 1)
        classificationin = classification[matchedobjs,:]
        classificationin = classificationin[0]
        finalclass = np.zeros(shape = len(galid[matchedobjs]))
        finalgalid = galid[matchedobjs]
        for i in range(0, len(galid[matchedobjs])):
-           finalclass[i] = np.median(classificationin[i,:])
+           counts = np.bincount(classificationin[i,:])
+           finalclass[i] = np.argmax(counts)
        matched = np.in1d(galidl, finalgalid)
        match = np.where(matched == True)
        finalgn = gn[match]

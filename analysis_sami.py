@@ -112,16 +112,23 @@ plt = common.load_matplotlib()
 obsdir = 'Plots/'
 #common.savefig(obsdir, fig, "lambdaR_dist.pdf")
 
+def classify_srs(l,e):
+    classification = np.zeros(shape = len(l))
+    sr = np.where((l < 0.14 + 0.27500001*e) & (e <= 0.5))
+    classification[sr] = 1
+    #sr = np.where((l < 0.14 + 0.27500001*0.5) & (e > 0.5))
+    #classification[sr] = 1
+    return classification
 
-def plot_comparison_sami(finalclass, finalgalid):
+def match_to_visual_srs(finalgalid, finalclass, props_selected_eagle):
+    selec_srs = np.where((finalclass <= 1) | (finalclass == 3))
+    idsin = finalgalid[selec_srs]
+    idall = np.squeeze(props_selected_eagle[4,:])
+    ids_matched = np.in1d(idall, idsin)
+    return props_selected_eagle[:,ids_matched]
+
+def plot_comparison_sami(finalclass, finalgalid, props_selected_eagle):
     obsdir = 'Plots/'
-
-    def match_to_visual_srs(finalgalid, finalclass, props_selected_eagle):
-        selec_srs = np.where((finalclass <= 1) | (finalclass == 3))
-        idsin = finalgalid[selec_srs]
-        idall = np.squeeze(props_selected_eagle[4,:])
-        ids_matched = np.in1d(idall, idsin)
-        return props_selected_eagle[:,ids_matched]
 
     props_true_srs = match_to_visual_srs(finalgalid, finalclass, props_selected_eagle) 
 
@@ -187,7 +194,7 @@ def plot_comparison_sami(finalclass, finalgalid):
     lin = props_true_srs[2,ind]
     ax.hist(lin[0], bins=20, range=(0,1), facecolor='yellow', histtype='step', linewidth=3, alpha=0.25, fill=True, edgecolor='k', label='EAGLE SRs')
 
-    ax.text(0.27,90,'$\\rm log_{10}(M_{\\star}/M{\\odot})=[10.5,10.9]$')
+    ax.text(0.27,90,'$\\rm log_{10}(M_{\\star}/M_{\\odot})=[10.5,10.9]$')
 
 
     xtit="$\\epsilon_{\\rm r_{50}}$"
@@ -199,13 +206,6 @@ def plot_comparison_sami(finalclass, finalgalid):
     ax = fig.add_subplot(233)
     common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(0.1, 0.1, 1, 1))
    
-    def classify_srs(l,e):
-        classification = np.zeros(shape = len(l))
-        sr = np.where((l < 0.14 + 0.27500001*e) & (e <= 0.5))
-        classification[sr] = 1
-        #sr = np.where((l < 0.14 + 0.27500001*0.5) & (e > 0.5))
-        #classification[sr] = 1
-        return classification
   
     sami_class = classify_srs(lambdaR_SAMI, ellip_SAMI)
     sami_class_nocorr = classify_srs(lambdaR_SAMI_nocorr, ellip_SAMI)
@@ -244,6 +244,104 @@ def plot_comparison_sami(finalclass, finalgalid):
     common.savefig(obsdir, fig, "lambdaR_Eps_plane.pdf")
 
     return galidsmatched
+
+#################################################### repeat plots but without SAMI ##################################################
+
+def plot_comparison_internal_eagle(finalclass, finalgalid):
+
+    classification = classify_srs(lambdaR_eag, ellip_eag)
+
+    props_selected_eagle = np.zeros(shape = (5, len(mstar_eag)))
+    props_selected_eagle[0] = np.log10(mstar_eag)
+    props_selected_eagle[1] = lambdaR_eag
+    props_selected_eagle[2] = ellip_eag
+    props_selected_eagle[3] = sigma_eag
+    props_selected_eagle[4] = galidl
+
+    props_true_srs = match_to_visual_srs(finalgalid, finalclass, props_selected_eagle) 
+
+    xtit="$\\lambda_{\\rm r_{50}}$"
+    xtit2="$\\epsilon_{\\rm r_{50}}$"
+    xtit3="$\\sigma_{\\rm r_{50}}/\\rm km\\, s^{-1}$"
+    xtit4="$\\rm log_{\\rm 10}(M_{\\star}/M_{\\odot})$"
+
+    ytit="$N$"
+    
+    fig = plt.figure(figsize=(17.5,4))
+    plt.subplots_adjust(left=0.08, bottom=0.17)
+    
+    xmin, xmax, ymin = 0, 0.9, 0
+    xmin3, xmax3 = 40, 190
+
+    def plot_hist_props(subplots, mmin, mmax, text, ymax, ybin):
+
+        ax = fig.add_subplot(subplots[0])
+        common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(0.2, 0.2, ybin, ybin))
+        ind = np.where((props_selected_eagle[0,:] >= mmin) & (props_selected_eagle[0,:] <= mmax))
+        lin = props_selected_eagle[1,ind]
+        ax.hist(lin[0], bins=20, range=(0,1), facecolor='blue', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k', label='All')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='blue')
+        ind = np.where((props_selected_eagle[0,:] >= mmin) & (props_selected_eagle[0,:] <= mmax) & (classification >= 1))
+        lin = props_selected_eagle[1,ind]
+        ax.hist(lin[0], bins=20, range=(0,1), facecolor='red', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k', label='Parametric SRs')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='red')
+        ind = np.where((props_true_srs[0,:] >= mmin) & (props_true_srs[0,:] <= mmax))
+        lin = props_true_srs[1,ind]
+        ax.hist(lin[0], bins=20, range=(0,1), facecolor='yellow', histtype='step', linewidth=3, alpha=0.25, fill=True, edgecolor='k', label='Visual SRs')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='yellow')
+        common.prepare_legend(ax, ['b','r','k'], loc='upper right')
+      
+        ax = fig.add_subplot(subplots[1])
+        common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit2, ' ', locators=(0.2, 0.2, ybin, ybin))
+        ind = np.where((props_selected_eagle[0,:] >= mmin) & (props_selected_eagle[0,:] <= mmax))
+        lin = props_selected_eagle[2,ind]
+        ax.hist(lin[0], bins=20, range=(0,1), facecolor='blue', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k', label='All')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='blue')
+        ind = np.where((props_selected_eagle[0,:] >= mmin) & (props_selected_eagle[0,:] <= mmax) & (classification >= 1))
+        lin = props_selected_eagle[2,ind]
+        ax.hist(lin[0], bins=20, range=(0,1), facecolor='red', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k', label='Parametric SRs')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='red')
+        ind = np.where((props_true_srs[0,:] >= mmin) & (props_true_srs[0,:] <= mmax))
+        lin = props_true_srs[2,ind]
+        ax.hist(lin[0], bins=20, range=(0,1), facecolor='yellow', histtype='step', linewidth=3, alpha=0.25, fill=True, edgecolor='k', label='Visual SRs')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='yellow')
+
+        ax = fig.add_subplot(subplots[2])
+        common.prepare_ax(ax, xmin3, xmax3, ymin, ymax, xtit3, ' ', locators=(25, 25, ybin, ybin))
+        ind = np.where((props_selected_eagle[0,:] >= mmin) & (props_selected_eagle[0,:] <= mmax))
+        lin = props_selected_eagle[3,ind]
+        ax.hist(lin[0], bins=25, range=(xmin3,xmax3), facecolor='blue', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='blue')
+        ind = np.where((props_selected_eagle[0,:] >= mmin) & (props_selected_eagle[0,:] <= mmax) & (classification >= 1))
+        lin = props_selected_eagle[3,ind]
+        ax.hist(lin[0], bins=25, range=(xmin3,xmax3), facecolor='red', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='red')
+        ind = np.where((props_true_srs[0,:] >= mmin) & (props_true_srs[0,:] <= mmax))
+        lin = props_true_srs[3,ind]
+        ax.hist(lin[0], bins=25, range=(xmin3,xmax3), facecolor='yellow', histtype='step', linewidth=3, alpha=0.25, fill=True, edgecolor='k')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='yellow')
+
+        #ax.text(xmin3 + 0.25*(xmax3-xmin3),ymax - 0.15*(ymax-ymin), text)
+
+        ax = fig.add_subplot(subplots[3])
+        common.prepare_ax(ax, mmin, mmax, ymin, ymax, xtit4, ' ', locators=(0.5, 0.5, ybin, ybin))
+        ind = np.where((props_selected_eagle[0,:] >= mmin) & (props_selected_eagle[0,:] <= mmax))
+        lin = props_selected_eagle[0,ind]
+        ax.hist(lin[0], bins=20, range=(mmin,mmax), facecolor='blue', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='blue')
+        ind = np.where((props_selected_eagle[0,:] >= mmin) & (props_selected_eagle[0,:] <= mmax) & (classification >= 1))
+        lin = props_selected_eagle[0,ind]
+        ax.hist(lin[0], bins=20, range=(mmin,mmax), facecolor='red', histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='red')
+        ind = np.where((props_true_srs[0,:] >= mmin) & (props_true_srs[0,:] <= mmax))
+        lin = props_true_srs[0,ind]
+        ax.hist(lin[0], bins=20, range=(mmin,mmax), facecolor='yellow', histtype='step', linewidth=3, alpha=0.25, fill=True, edgecolor='k')
+        ax.plot([np.median(lin[0]), np.median(lin[0])], [ymin, ymax], linestyle='dashed', color='yellow')
+
+    plot_hist_props([141, 142, 143, 144], 10, 12, "$\\rm log_{10}(M_{\\star}/M_{\\odot})=[10,10.75)$", 550, 100)
+    #plot_hist_props([245, 246, 247, 248], 10.75, 11.5, "$\\rm log_{10}(M_{\\star}/M_{\\odot})=[10.75,11.5]$", 150, 50)
+ 
+    common.savefig(obsdir, fig, "lambdaR_Eps_plane_InternalEAGLE.pdf")
 
 
 #################################################### analysis of classification ###########################################
@@ -532,7 +630,95 @@ def find_classification(selective = True):
 
 
 finalclass, finalgn, finalsgn, finalgalid, finalmhalo, finalmstar = find_classification(selective = True)
-galids_parametric_srs = plot_comparison_sami(finalclass, finalgalid)
+
+#find out what the median stellar mass is for the different kinematic classes
+############################
+# plot distribution of kinematic classes depending on merger history
+xtit="Kinematic class"
+ytit="$\\rm log_{10}(M_{\\star}/M_{\\odot})$"
+fig = plt.figure(figsize=(5,4))
+plt.subplots_adjust(left=0.25, bottom=0.17)
+x_values = ['FSR', 'RSR', '2$\sigma$', 'Prol']
+colors = ['k', 'darkgreen', 'blue', 'red', 'Yellow', 'Navy']
+xmin, xmax, ymin, ymax = -0.5, 3.5, 10.05, 11.05
+
+xpos, ypos = xmax - 0.63 * (xmax - xmin), ymax - 0.15 * (ymax - ymin)
+
+ax = fig.add_subplot(121)
+common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 0.5, 0.5))
+
+def plot_median_stellarmass(ax,sm,sgn,x=1,color='red'):
+    y = np.zeros(shape=6)
+    y[0] = np.median(sm)
+    y[1], y[2] = np.percentile(sm, (16.0,84.0))
+    y[3], y[4] = np.percentile(sm, (25.0,75.0))
+
+    ind = np.where(sgn == 0)
+    y[5] = np.median(sm[ind])
+
+    ax.fill_between([x-0.05,x+0.05], [y[1],y[1]], [y[2],y[2]],facecolor=color, alpha=0.25,interpolate=True)
+    ax.fill_between([x-0.1,x+0.1], [y[3],y[3]], [y[4],y[4]],facecolor=color, alpha=0.5,interpolate=True)
+
+    ax.plot(x,y[0],color='k', marker='o', markersize=12, alpha=0.5)
+    ax.plot(x,y[5],color='k', marker='s', markersize=12, alpha=0.5)
+
+for i in range(0,len(x_values)):
+    ind = np.where(finalclass == i)
+    plot_median_stellarmass(ax,np.log10(finalmstar[ind]),finalsgn[ind], x=i,color=colors[i])
+plt.xticks([0,1,2,3], x_values)
+
+ax = fig.add_subplot(122)
+ymin, ymax = 11.8, 14
+ytit="$\\rm log_{10}(M_{\\rm halo}/M_{\\odot})$"
+common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 0.5, 0.5))
+
+for i in range(0,len(x_values)):
+    ind = np.where(finalclass == i)
+    plot_median_stellarmass(ax,np.log10(finalmhalo[ind]),finalsgn[ind], x=i,color=colors[i])
+plt.xticks([0,1,2,3], x_values)
+
+plt.tight_layout()
+common.savefig(obsdir, fig, "StellarMassKinClasses.pdf")
+
+# plot distribution of stellar masses in the different kinematic classes.
+ytit="PDF"
+xtit="$\\rm log_{10}(M_{\\star}/M_{\\odot})$"
+fig = plt.figure(figsize=(5,4))
+plt.subplots_adjust(left=0.25, bottom=0.17)
+x_values = ['FSR', 'RSR', '2$\sigma$', 'Prol']
+colors = ['k', 'darkgreen', 'blue', 'red', 'Yellow', 'Navy']
+xmin, xmax, ymin, ymax = 10.0, 12.0, 0, 1.5
+
+xpos, ypos = xmax - 0.63 * (xmax - xmin), ymax - 0.15 * (ymax - ymin)
+
+ax = fig.add_subplot(121)
+common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 0.5, 0.5))
+
+def plot_stellarmass_dist(ax,sm,range_mass=(10.0,12.0), color='red'):
+    ax.hist(sm, bins=7, range=range_mass, density = True, facecolor=color, histtype='step', linewidth=2, alpha=0.25, fill=True, edgecolor='k')
+
+for i in range(0,len(x_values)):
+    ind = np.where(finalclass == i)
+    plot_stellarmass_dist(ax,np.log10(finalmstar[ind]),range_mass=(10.0,12.0), color=colors[i])
+
+ax = fig.add_subplot(122)
+xmin, xmax = 11, 14
+xtit="$\\rm log_{10}(M_{\\rm halo}/M_{\\odot})$"
+common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 0.5, 0.5))
+
+for i in range(0,len(x_values)):
+    ind = np.where(finalclass == i)
+    plot_stellarmass_dist(ax,np.log10(finalmhalo[ind]),range_mass=(11.0,14.0), color=colors[i])
+
+plt.tight_layout()
+common.savefig(obsdir, fig, "StellarMassDistKinClasses.pdf")
+
+############################################################################
+############################################################################
+############################################################################
+
+galids_parametric_srs = plot_comparison_sami(finalclass, finalgalid, props_selected_eagle)
+plot_comparison_internal_eagle(finalclass, finalgalid)
 commonids = np.in1d(galid, galids_parametric_srs)
 matched = np.where(commonids == True)
 
@@ -542,7 +728,7 @@ if(print_finalclass):
        print(a,b,c,d,e)
 
 
-mergerhist_srs = np.zeros(shape = (12,len(finalgn)))
+mergerhist_srs = np.zeros(shape = (13,len(finalgn)))
 for i in range(0,len(finalgn)):
     match = np.where((mergerdata[:,0] == finalgn[i]) & (mergerdata[:,1] == finalsgn[i]))
     mergerhist_srs[0:8,i] = mergerdata[match,2:10]
@@ -550,9 +736,24 @@ for i in range(0,len(finalgn)):
     mergerhist_srs[9,i]   = np.sum(mergerdata[match,6:9]) #all major mergers
     mergerhist_srs[10,i]  = mergerdata[match,3] + mergerdata[match,6] #dry mergers
     mergerhist_srs[11,i]  = mergerdata[match,4] + mergerdata[match,5] + mergerdata[match,7] + mergerdata[match,8] #wet mergers
+    mergerhist_srs[12,i]  = mergerdata[match,5] + mergerdata[match,8] #very gas-rich mergers
 
 ############################
 # plot distribution of kinematic classes depending on merger history
+
+
+#select all prolates and count their numbers:
+ind = np.where((mergerhist_srs[7,:] == 0) & (finalclass == 3))
+print(finalclass[ind])
+print('Number of SRs prolates with no mergers: ',len(finalclass[ind]))
+ind = np.where((mergerhist_srs[7,:] == 0) & (finalclass == 3))
+print(finalclass[ind])
+print('Number of SRs prolates with no mergers: ',len(finalclass[ind]))
+
+ind = np.where(finalclass == 3)
+print('Number of SRs prolates: ', len(finalclass[ind]))
+
+
 subplots = (611, 612, 613, 614, 615, 616)
 mergers_explore = (9, 8, 0, 7, 10, 11)
 labels = ('Major mergers', 'Minor mergers', 'Very minor mergers', 'No mergers', 'Dry mergers', 'Wet mergers')
@@ -605,10 +806,12 @@ ax = fig.add_subplot(121)
 xmin, xmax, ymin, ymax = -0.5, 5.5, 0, 0.6
 common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 0.1, 0.1))
 ax.text(1.5,0.62,'Satellites',fontsize=12)
-ind = np.where((finalsgn > 0) & (finalmhalo < np.median(finalmhalo)))
-ax.hist(finalclass[ind], bins=6, range=(-0.5,5.5), density = True, facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label='$\\rm M_{halo}<10^{12.6}\\rm M_{\odot}$')
-ind = np.where((finalsgn > 0)  & (finalmhalo > np.median(finalmhalo)))
-ax.hist(finalclass[ind], bins=6, range=(-0.5,5.5), density = True, facecolor='red', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label='$\\rm M_{halo}>10^{12.6}\\rm M_{\odot}$')
+ind = np.where(finalsgn > 0)
+mhalo_med = np.median(finalmhalo[ind])
+ind = np.where((finalsgn > 0) & (finalmhalo < mhalo_med))
+ax.hist(finalclass[ind], bins=6, range=(-0.5,5.5), density = True, facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label='$\\rm M_{halo}<10^{13.6}\\rm M_{\odot}$')
+ind = np.where((finalsgn > 0)  & (finalmhalo >= mhalo_med))
+ax.hist(finalclass[ind], bins=6, range=(-0.5,5.5), density = True, facecolor='red', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label='$\\rm M_{halo}>10^{13.6}\\rm M_{\odot}$')
 plt.xticks([0,1,2,3,4,5], x_values)
 common.prepare_legend(ax, ('blue','red'), loc='upper right')
 
@@ -616,10 +819,13 @@ common.prepare_legend(ax, ('blue','red'), loc='upper right')
 ax = fig.add_subplot(122)
 xmin, xmax, ymin, ymax = -0.5, 5.5, 0, 0.6
 ax.text(1.5,0.62,'Centrals',fontsize=12)
+ind = np.where(finalsgn == 0) 
+mstar_med = np.median(finalmstar[ind])
+print(np.log10(mstar_med))
 common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ' ', locators=(1, 1, 0.1, 0.1))
-ind = np.where((finalsgn == 0) & (finalmstar < np.median(finalmstar)))
+ind = np.where((finalsgn == 0) & (finalmstar < mstar_med))
 ax.hist(finalclass[ind], bins=6, range=(-0.5,5.5), density = True, facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label='$\\rm M_{\\star}<10^{10.5}\\rm M_{\odot}$')
-ind = np.where((finalsgn == 0)  & (finalmstar > np.median(finalmstar)))
+ind = np.where((finalsgn == 0)  & (finalmstar >= mstar_med))
 ax.hist(finalclass[ind], bins=6, range=(-0.5,5.5), density = True, facecolor='red', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label='$\\rm M_{\\star}>10^{10.5}\\rm M_{\odot}$')
 plt.xticks([0,1,2,3,4,5], x_values)
 common.prepare_legend(ax, ('blue','red'), loc='upper right')
@@ -756,8 +962,8 @@ def info_last_merger_kinclass(kinclass, gn, sgn, selection=0, merger_thresh = 0)
 
 ############################
 # plot distribution of merger properties of kinematic classes
-subplots = (311, 312, 313)
-fig = plt.figure(figsize=(3,7))
+subplots = (131, 132, 133)
+fig = plt.figure(figsize=(10,3))
 plt.subplots_adjust(left=0.25, bottom=0.17)
 kinclasses = [3,2,1,0] #,1,2,3]
 colors = ['Chocolate', 'YellowGreen', 'SteelBlue', 'DarkMagenta']
@@ -769,18 +975,18 @@ xmin = (0, 0, 1)
 xmax = (1, 1.5, 12.)
 ymax = (1.05, 1.05, 1.05)
 ticks = (0.2, 0.2, 2)
-xtit=["$M_{\\star,\\rm sec}/M_{\\star,\\rm prim}$", "$M_{\\rm SF,total}/M_{\\star,\\rm total}$", "lookback time [Gyr]"]
+xtit=["$M_{\\star,\\rm sec}/M_{\\star,\\rm prim}$", "$M_{\\rm SF,total}/M_{\\rm \\star,\\rm total}$", "lookback time [Gyr]"]
 ytit="Cumulative dist."
 
 for p in range(0,3):
     ax = fig.add_subplot(subplots[p])
-    common.prepare_ax(ax, xmin[p], xmax[p], ymin[p], ymax[p], xtit[p], ytit, locators=(ticks[p], ticks[p], 100, 100))
+    common.prepare_ax(ax, xmin[p], xmax[p], ymin[p], ymax[p], xtit[p], ytit, locators=(ticks[p], ticks[p], 0.2, 0.2))
     for i in range(0,len(kinclasses)):
         props = info_last_merger_kinclass(finalclass, finalgn, finalsgn, selection = kinclasses[i])
         true_mergers = np.where(props[0,:] > 0)
         xin = props[p,true_mergers]
         ax.hist(xin[0], bins=15, range=(xmin[p], xmax[p]), density = True, cumulative = True, facecolor=colors[i], histtype='step', linewidth=2, alpha = 0.85, fill=False, edgecolor=colors[i], label=labels[i])
-        ax.axes.yaxis.set_ticks([])
+        #ax.axes.yaxis.set_ticks([])
     if p == 0:
        xin = [0.3, 0.3]
        yin = [0, 1.05]
@@ -840,18 +1046,20 @@ common.savefig(obsdir, fig, "DistributionMergerParametersKinClasses.pdf")
 
 ############### properties of last major merger #########################
 
-thresholds = [0.099, 0.299]
+thresholds = [0.000099, 0.299]
 titles = ['Minor', 'Major']
+titles_plot = ['Very minor+minor', 'Major']
+
 kinclasses = [3,1,0] #,1,2,3]
 colors = ['Chocolate', 'SteelBlue', 'DarkMagenta']
 labels = ['Prol', 'RSR', 'FSR'] #, '2$\sigma$', 'Prol']
-
+xtitles = [0.3,0.55]
 
 for t in range(0,len(thresholds)):
     fig = plt.figure(figsize=(3,7))
     plt.subplots_adjust(left=0.25, bottom=0.1)
     ymin =  (0.1, 0.1, 0.1) #0.29, 0.3, 0.04)
-    ymax = (6, 4, 0.4)
+    ymax = (6, 5, 0.4)
     ytit="PDF"
    
     for p in range(0,3):
@@ -884,7 +1092,7 @@ for t in range(0,len(thresholds)):
            ax.arrow(0.1, 3.2, 0.18, 0, head_width=0.12, head_length=0.025)
            ax.text(0.1,3.4, 'wet', color='k')
            common.prepare_legend(ax, colors, loc='upper right')
-           ax.text(0.55,ymax[p]+0.05, titles[t], color='k')
+           ax.text(xtitles[t],ymax[p]+0.05, titles_plot[t], color='k')
 
     plt.tight_layout()
     common.savefig(obsdir, fig, "Distribution" + titles[t] + "MergerParametersKinClasses.pdf")

@@ -1,5 +1,6 @@
 import numpy as np
 import common
+import scipy.stats as st
 
 AdoptProcedureSimSpin = False
 
@@ -754,44 +755,77 @@ ind = np.where(finalclass == 3)
 print('Number of SRs prolates: ', len(finalclass[ind]))
 
 
-subplots = (611, 612, 613, 614, 615, 616)
+subplots = (131, 132, 133) #, 614, 615, 616)
 mergers_explore = (9, 8, 0, 7, 10, 11)
-labels = ('Major mergers', 'Minor mergers', 'Very minor mergers', 'No mergers', 'Dry mergers', 'Wet mergers')
+labels = ('Major', 'Minor', 'Very min', 'no mer', 'Dry', 'Wet')
 xtit="Kinematic class"
-ytit="N"
-fig = plt.figure(figsize=(3.5,8))
+ytit="PDF"
+fig = plt.figure(figsize=(11,4))
 plt.subplots_adjust(left=0.25, bottom=0.17)
 x_values = ['FSR', 'RSR', '2$\sigma$', 'Prol','Uncl','R']
-colors = ['k', 'darkgreen', 'blue', 'red', 'Yellow', 'Navy']
-xmin, xmax, ymin, ymax = -0.5, 5.5, 0, 140
+colors = ['k', 'darkgreen', 'blue', 'red', 'Gold', 'Navy']
+xmin, xmax, ymin, ymax = -0.5, 5.5, 0, 0.5
 
 xpos, ypos = xmax - 0.63 * (xmax - xmin), ymax - 0.15 * (ymax - ymin)
 
-def plot_kin_class_mergers(ax, classi, color='red'):
-    ax.hist(classi, bins=6, range=(-0.5,5.5), facecolor=color, histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k')
+def plot_kin_class_mergers(ax, classi, color='red', label=''):
+    ntries = 100
+    histo = np.zeros(shape = (2, 6))
+    histo_all_tries = np.zeros(shape = (ntries, 6))
+    fac = 0.2
+    for j in range(0,ntries):
+        sample = np.random.choice(classi, size=int(len(classi)*fac))
+        histo_all_tries[j,:], _ = np.histogram(sample, bins=6, range=(-0.5,5.5))
+    for i in range(0,6):
+        histo[0,i] = np.mean(histo_all_tries[:,i])/fac
+        histo[1,i] = np.std(histo_all_tries[:,i])
+    
+    histo[0,:], _ = np.histogram(classi, bins=6, range=(-0.5,5.5))
+    #for i in range(0,6):
+    #    histo[1,i] = np.sqrt((histo[1,i])**2.0 + histo[0,i])
 
-for  i in range(0,len(mergers_explore)):
-    ax = fig.add_subplot(subplots[i])
-    common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 30, 30))
-    ax.text(xpos, ypos, labels[i])
-    if i == 0:
+    ax.hist(classi, bins=6, range=(-0.5,5.5), density=True, facecolor=color, histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label=label)
+    ax.errorbar(np.arange(0,6), histo[0,:]/len(classi), yerr=(histo[0,:] + histo[1,:])/len(classi) - histo[0,:]/len(classi), color='k', marker='o', markersize=0.2, elinewidth=1.0, linewidth=0, data=None)
+
+for  j in range(0,len(subplots)):
+    ax = fig.add_subplot(subplots[j])
+    common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ytit, locators=(1, 1, 0.2, 0.2))
+    if j == 0:
+       i = 0
        ind = np.where(mergerhist_srs[mergers_explore[i],:] > 0)
-    elif i == 1:
+       fc1 = finalclass[ind]
+       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i])
+       i = 1
        ind = np.where((mergerhist_srs[mergers_explore[i-1],:]== 0) & (mergerhist_srs[mergers_explore[i],:] > 0))
-    elif i == 2:
+       fc2 = finalclass[ind]
+       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i])
+    elif j == 1:
+       i = 2
        ind = np.where((mergerhist_srs[mergers_explore[i-2],:]== 0) & (mergerhist_srs[mergers_explore[i-1],:]== 0) & (mergerhist_srs[mergers_explore[i],:] > 0))
-    elif i == 3:
+       fc3 = finalclass[ind]
+       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i])
+       i = 3
        ind = np.where(mergerhist_srs[mergers_explore[i],:] == 0)
-    elif i == 4:
+       fc4 = finalclass[ind]
+       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i])
+    elif j == 2:
+       i = 4
        ind = np.where(mergerhist_srs[mergers_explore[i],:] > 0)
-    elif i == 5:
+       fc5 = finalclass[ind]
+       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i])
+       i = 5
        ind = np.where((mergerhist_srs[mergers_explore[i-1],:] == 0) & (mergerhist_srs[mergers_explore[i],:] > 0))
+       fc6 = finalclass[ind]
+       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i])
 
-    plot_kin_class_mergers(ax, finalclass[ind], color=colors[i])
-    if(i <= 4):
-       plt.xticks([0,1,2,3,4,5],[" ", " "," "," "," "," "])
-    else:
-       plt.xticks([0,1,2,3,4,5], x_values)
+    common.prepare_legend(ax, (colors[i-1], colors[i]), loc='upper right')
+    plt.xticks([0,1,2,3,4,5], x_values)
+    plt.tight_layout()
+
+print("KS test major vs minor mergers,", st.ks_2samp(fc1, fc2, alternative='greater', mode = 'exact')) 
+print("KS test major vs very minor mergers,", st.ks_2samp(fc1, fc3, alternative='greater', mode = 'exact')) 
+print("KS test major vs no mergers,", st.ks_2samp(fc1, fc4, alternative='greater', mode = 'exact')) 
+print("KS test dry vs wet mergers,", st.ks_2samp(fc5, fc6, alternative='greater', mode = 'exact')) 
 
 common.savefig(obsdir, fig, "MergerHistoryDistributionKinClasses.pdf")
 

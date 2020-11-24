@@ -768,8 +768,8 @@ xmin, xmax, ymin, ymax = -0.5, 5.5, 0, 0.5
 
 xpos, ypos = xmax - 0.63 * (xmax - xmin), ymax - 0.15 * (ymax - ymin)
 
-def plot_kin_class_mergers(ax, classi, color='red', label=''):
-    ntries = 100
+def plot_kin_class_mergers(ax, classi, color='red', label='', pert=0):
+    ntries = 500
     histo = np.zeros(shape = (2, 6))
     histo_all_tries = np.zeros(shape = (ntries, 6))
     fac = 0.2
@@ -781,11 +781,8 @@ def plot_kin_class_mergers(ax, classi, color='red', label=''):
         histo[1,i] = np.std(histo_all_tries[:,i])
     
     histo[0,:], _ = np.histogram(classi, bins=6, range=(-0.5,5.5))
-    #for i in range(0,6):
-    #    histo[1,i] = np.sqrt((histo[1,i])**2.0 + histo[0,i])
-
     ax.hist(classi, bins=6, range=(-0.5,5.5), density=True, facecolor=color, histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label=label)
-    ax.errorbar(np.arange(0,6), histo[0,:]/len(classi), yerr=(histo[0,:] + histo[1,:])/len(classi) - histo[0,:]/len(classi), color='k', marker='o', markersize=0.2, elinewidth=1.0, linewidth=0, data=None)
+    ax.errorbar(np.arange(0,6)+pert, histo[0,:]/len(classi), yerr=(histo[0,:] + histo[1,:])/len(classi) - histo[0,:]/len(classi), color='k', marker='o', markersize=0.2, elinewidth=1.0, linewidth=0, data=None)
 
 for  j in range(0,len(subplots)):
     ax = fig.add_subplot(subplots[j])
@@ -798,7 +795,7 @@ for  j in range(0,len(subplots)):
        i = 1
        ind = np.where((mergerhist_srs[mergers_explore[i-1],:]== 0) & (mergerhist_srs[mergers_explore[i],:] > 0))
        fc2 = finalclass[ind]
-       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i])
+       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i], pert=0.1)
     elif j == 1:
        i = 2
        ind = np.where((mergerhist_srs[mergers_explore[i-2],:]== 0) & (mergerhist_srs[mergers_explore[i-1],:]== 0) & (mergerhist_srs[mergers_explore[i],:] > 0))
@@ -807,7 +804,7 @@ for  j in range(0,len(subplots)):
        i = 3
        ind = np.where(mergerhist_srs[mergers_explore[i],:] == 0)
        fc4 = finalclass[ind]
-       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i])
+       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i], pert=0.1)
     elif j == 2:
        i = 4
        ind = np.where(mergerhist_srs[mergers_explore[i],:] > 0)
@@ -816,7 +813,7 @@ for  j in range(0,len(subplots)):
        i = 5
        ind = np.where((mergerhist_srs[mergers_explore[i-1],:] == 0) & (mergerhist_srs[mergers_explore[i],:] > 0))
        fc6 = finalclass[ind]
-       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i])
+       plot_kin_class_mergers(ax, finalclass[ind], color=colors[i], label=labels[i], pert=0.1)
 
     common.prepare_legend(ax, (colors[i-1], colors[i]), loc='upper right')
     plt.xticks([0,1,2,3,4,5], x_values)
@@ -830,6 +827,33 @@ print("KS test dry vs wet mergers,", st.ks_2samp(fc5, fc6, alternative='greater'
 common.savefig(obsdir, fig, "MergerHistoryDistributionKinClasses.pdf")
 
 ############################
+
+def compute_errors_hist(x, nbins, range_input=(0,1), color='red', label='', pert=0.1, fill=False, edgecolor='k', fac=0.85):
+
+    low = range_input[0]
+    high = range_input[1]
+    dx = (high-low)/nbins
+    x_axis = np.arange(low,high,dx)+dx/2.0
+
+    ntries = 100
+    histo = np.zeros(shape = (2, nbins))
+    histo_all_tries = np.zeros(shape = (ntries, nbins))
+    for j in range(0,ntries):
+        sample = np.random.choice(x, size=int(len(x)*fac))
+        histo_all_tries[j,:], _ = np.histogram(sample, bins=nbins, range=range_input)
+        histo_all_tries[j,:] = histo_all_tries[j,:]/(len(sample)*dx)
+    for i in range(0,nbins):
+        histo[0,i] = np.mean(histo_all_tries[:,i])
+        histo[1,i] = np.std(histo_all_tries[:,i])
+    histo[0,:], _ = np.histogram(x, bins=nbins, range=range_input)
+    histo[0,:] = histo[0,:]/(len(x)*dx)
+
+    ax.hist(x, bins=nbins, range=range_input, density = True, facecolor=color, histtype='step', linewidth=2, alpha = 0.25, fill=fill, edgecolor=edgecolor, label=label)
+    ax.errorbar(x_axis[0:nbins]+pert, histo[0,:], yerr=(histo[0,:] + histo[1,:]) - histo[0,:], color=color, marker='o', markersize=0.2, elinewidth=1.0, linewidth=0, data=None)
+
+    return histo
+
+
 # plot distribution of kinematic classes for centrals and satellites
 ytit="PDF"
 xtit="Kinematic class"
@@ -843,9 +867,10 @@ ax.text(1.5,0.62,'Satellites',fontsize=12)
 ind = np.where(finalsgn > 0)
 mhalo_med = np.median(finalmhalo[ind])
 ind = np.where((finalsgn > 0) & (finalmhalo < mhalo_med))
-ax.hist(finalclass[ind], bins=6, range=(-0.5,5.5), density = True, facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label='$\\rm M_{halo}<10^{13.6}\\rm M_{\odot}$')
+compute_errors_hist(finalclass[ind], 6, range_input=(-0.5,5.5), color= 'blue', label='$\\rm M_{halo}<10^{13.6}\\rm M_{\odot}$', pert=0, fill=True, fac=0.9)
 ind = np.where((finalsgn > 0)  & (finalmhalo >= mhalo_med))
-ax.hist(finalclass[ind], bins=6, range=(-0.5,5.5), density = True, facecolor='red', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label='$\\rm M_{halo}>10^{13.6}\\rm M_{\odot}$')
+compute_errors_hist(finalclass[ind], 6, range_input=(-0.5,5.5), color= 'red', label='$\\rm M_{halo}>10^{13.6}\\rm M_{\odot}$', pert=0.15, fill=True, fac=0.9)
+
 plt.xticks([0,1,2,3,4,5], x_values)
 common.prepare_legend(ax, ('blue','red'), loc='upper right')
 
@@ -858,9 +883,10 @@ mstar_med = np.median(finalmstar[ind])
 print(np.log10(mstar_med))
 common.prepare_ax(ax, xmin, xmax, ymin, ymax, xtit, ' ', locators=(1, 1, 0.1, 0.1))
 ind = np.where((finalsgn == 0) & (finalmstar < mstar_med))
-ax.hist(finalclass[ind], bins=6, range=(-0.5,5.5), density = True, facecolor='blue', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label='$\\rm M_{\\star}<10^{10.5}\\rm M_{\odot}$')
+compute_errors_hist(finalclass[ind], 6, range_input=(-0.5,5.5), color= 'blue', label='$\\rm M_{\\star}<10^{10.5}\\rm M_{\odot}$', pert=0, fill=True, fac=0.9)
 ind = np.where((finalsgn == 0)  & (finalmstar >= mstar_med))
-ax.hist(finalclass[ind], bins=6, range=(-0.5,5.5), density = True, facecolor='red', histtype='step', linewidth=2, alpha=0.5, fill=True, edgecolor='k', label='$\\rm M_{\\star}>10^{10.5}\\rm M_{\odot}$')
+compute_errors_hist(finalclass[ind], 6, range_input=(-0.5,5.5), color= 'red', label='$\\rm M_{\\star}>10^{10.5}\\rm M_{\odot}$', pert=0.15, fill=True, fac=0.9)
+
 plt.xticks([0,1,2,3,4,5], x_values)
 common.prepare_legend(ax, ('blue','red'), loc='upper right')
 
@@ -904,34 +930,53 @@ frac_mergers[0,5] = len(finalclass[ind]) + 0.0
 
 def plot_merger_dist(ax, frac_mergers, classin=0, color='red', label='SR', pert=0):
     xplot = np.array([0,1,2,3,4,5])
-    
+  
+    ntries = 500  
     ind = np.where(finalclass == classin)
     selectedclass = finalclass[ind]
-    Nclass = len(selectedclass)
-    mergers_in = np.zeros(shape = (len(finalclass[ind])))
     mergerhist_srs_in = mergerhist_srs[:,ind]
     mergerhist_srs_in = mergerhist_srs_in[:,0,:]
-    #select major mergers
-    ind = np.where(mergerhist_srs_in[9,:] > 0)
-    frac_mergers[1,0] = len(selectedclass[ind]) + 0.0
-    #select minor mergers
-    ind = np.where((mergerhist_srs_in[8,:] > 0) & (mergerhist_srs_in[9,:] == 0))
-    frac_mergers[1,1] = len(selectedclass[ind]) + 0.0
-    #select very minor mergers
-    ind = np.where((mergerhist_srs_in[0,:] > 0) & (mergerhist_srs_in[8,:] == 0) & (mergerhist_srs_in[9,:] == 0))
-    frac_mergers[1,2] = len(selectedclass[ind]) + 0.0
-    #select no mergers
-    ind = np.where(mergerhist_srs_in[7,:] == 0)
-    frac_mergers[1,3] = len(selectedclass[ind]) + 0.0
-    #dry major mergers
-    ind = np.where(mergerhist_srs_in[10,:] > 0)
-    frac_mergers[1,4] = len(selectedclass[ind]) + 0.0
-    #wet major mergers
-    ind = np.where((mergerhist_srs_in[10,:] == 0) & (mergerhist_srs_in[11,:] > 0))
-    frac_mergers[1,5] = len(selectedclass[ind]) + 0.0
+    ids = np.arange(0,len(selectedclass))
 
-    yplot = frac_mergers[1,:]/frac_mergers[0,:]/Nclass
-    yerr = frac_mergers[1,:]/frac_mergers[0,:]/(Nclass-np.sqrt(Nclass)) - yplot
+    fac = 0.97
+    yplot_all = np.zeros(shape = (6,ntries))
+    yplot = np.zeros(shape = 6)
+    yerr = np.zeros(shape = 6)
+
+    nselec = int(len(ids)*fac)
+    if(nselec == len(ids)):
+       nselec = len(ids)-1
+    print(len(ids),nselec)
+    for i in range(0,ntries):
+        ids_selected = np.random.choice(ids, size=nselec)
+
+        Nclass = len(ids_selected)
+        mergerhist_srs_in_try = mergerhist_srs_in[:,ids_selected]
+        selectedclass_in_try = selectedclass[ids_selected]
+        #select major mergers
+        ind = np.where(mergerhist_srs_in_try[9,:] > 0)
+        frac_mergers[1,0] = len(selectedclass_in_try[ind]) + 0.0
+        #select minor mergers
+        ind = np.where((mergerhist_srs_in_try[8,:] > 0) & (mergerhist_srs_in_try[9,:] == 0))
+        frac_mergers[1,1] = len(selectedclass_in_try[ind]) + 0.0
+        #select very minor mergers
+        ind = np.where((mergerhist_srs_in_try[0,:] > 0) & (mergerhist_srs_in_try[8,:] == 0) & (mergerhist_srs_in_try[9,:] == 0))
+        frac_mergers[1,2] = len(selectedclass_in_try[ind]) + 0.0
+        #select no mergers
+        ind = np.where(mergerhist_srs_in_try[7,:] == 0)
+        frac_mergers[1,3] = len(selectedclass_in_try[ind]) + 0.0
+        #dry major mergers
+        ind = np.where(mergerhist_srs_in_try[10,:] > 0)
+        frac_mergers[1,4] = len(selectedclass_in_try[ind]) + 0.0
+        #wet major mergers
+        ind = np.where((mergerhist_srs_in_try[10,:] == 0) & (mergerhist_srs_in_try[11,:] > 0))
+        frac_mergers[1,5] = len(selectedclass_in_try[ind]) + 0.0
+        for j in range(0,6):
+            yplot_all[j,i] = frac_mergers[1,j]/frac_mergers[0,j]/Nclass
+    for j in range(0,6):
+        yplot[j] = np.mean(yplot_all[j,:])
+        yerr[j] = np.std(yplot_all[j,:])
+
     ax.errorbar(xplot+pert, yplot, yerr=yerr, color=color, marker='o', label=label)
 
 ax = fig.add_subplot(111)
@@ -1006,20 +1051,51 @@ labels = ['Prol', '2$\sigma$', 'RSR', 'FSR'] #, '2$\sigma$', 'Prol']
 props=[0,1,3]
 ymin = (0.17, 0.18, 0)
 xmin = (0, 0, 1)
-xmax = (1, 1.5, 12.)
+xmax = (1, 1.5, 12.2)
 ymax = (1.05, 1.05, 1.05)
 ticks = (0.2, 0.2, 2)
 xtit=["$M_{\\star,\\rm sec}/M_{\\star,\\rm prim}$", "$M_{\\rm SF,total}/M_{\\rm \\star,\\rm total}$", "lookback time [Gyr]"]
 ytit="Cumulative dist."
 
+def compute_errors_cumdist(x, nbins, range_input=(0,1), color='red', label='', pert=0.1):
+
+    ntries = 100
+    histo = np.zeros(shape = (2, nbins))
+    histo_all_tries = np.zeros(shape = (ntries, nbins))
+    fac = 0.85
+    for j in range(0,ntries):
+        sample = np.random.choice(x, size=int(len(x)*fac))
+        histo_all_tries[j,:], _ = np.histogram(sample, bins=nbins, range=range_input)
+        histo_all_tries[j,:] = np.cumsum(histo_all_tries[j,:])/len(sample)
+    for i in range(0,nbins):
+        histo[0,i] = np.mean(histo_all_tries[:,i])
+        histo[1,i] = np.std(histo_all_tries[:,i])
+    histo[0,:], _ = np.histogram(x, bins=nbins, range=range_input)
+    histo[0,:] = np.cumsum(histo[0,:])/len(x)
+
+    low = range_input[0]
+    high = range_input[1]
+    dx = (high-low)/nbins
+    x_axis = np.arange(low,high,dx)+dx/2.0
+    ax.hist(x, bins=nbins, range=range_input, density = True, cumulative = True, facecolor=color, histtype='step', linewidth=2, alpha = 0.85, fill=False, edgecolor=color, label=label)
+    ax.errorbar(x_axis[0:nbins]+pert, histo[0,:], yerr=(histo[0,:] + histo[1,:]) - histo[0,:], color=color, marker='o', markersize=0.2, elinewidth=1.0, linewidth=0, data=None)
+
+    return histo
+
+pert = [-0.66,-0.33,0,0.33]
 for p in range(0,3):
     ax = fig.add_subplot(subplots[p])
-    common.prepare_ax(ax, xmin[p], xmax[p], ymin[p], ymax[p], xtit[p], ytit, locators=(ticks[p], ticks[p], 0.2, 0.2))
+    if p == 0:
+       ytitle = ytit
+    else:
+       ytitle = ''
+    common.prepare_ax(ax, xmin[p], xmax[p], ymin[p], ymax[p], xtit[p], ytitle, locators=(ticks[p], ticks[p], 0.2, 0.2))
     for i in range(0,len(kinclasses)):
         props = info_last_merger_kinclass(finalclass, finalgn, finalsgn, selection = kinclasses[i])
         true_mergers = np.where(props[0,:] > 0)
         xin = props[p,true_mergers]
-        ax.hist(xin[0], bins=15, range=(xmin[p], xmax[p]), density = True, cumulative = True, facecolor=colors[i], histtype='step', linewidth=2, alpha = 0.85, fill=False, edgecolor=colors[i], label=labels[i])
+        compute_errors_cumdist(xin[0], 15, range_input=(xmin[p], xmax[p]), color=colors[i], label=labels[i], pert = pert[i]*0.025)
+        #ax.hist(xin[0], bins=15, range=(xmin[p], xmax[p]), density = True, cumulative = True, facecolor=colors[i], histtype='step', linewidth=2, alpha = 0.85, fill=False, edgecolor=colors[i], label=labels[i])
         #ax.axes.yaxis.set_ticks([])
     if p == 0:
        xin = [0.3, 0.3]
@@ -1079,6 +1155,8 @@ plt.tight_layout()
 common.savefig(obsdir, fig, "DistributionMergerParametersKinClasses.pdf")
 
 ############### properties of last major merger #########################
+subplots = (311, 312, 313)
+
 
 thresholds = [0.000099, 0.299]
 titles = ['Minor', 'Major']
@@ -1089,11 +1167,14 @@ colors = ['Chocolate', 'SteelBlue', 'DarkMagenta']
 labels = ['Prol', 'RSR', 'FSR'] #, '2$\sigma$', 'Prol']
 xtitles = [0.3,0.55]
 
+
+pert = [-0.15,0,0.15]
+
 for t in range(0,len(thresholds)):
-    fig = plt.figure(figsize=(3,7))
+    fig = plt.figure(figsize=(3,10))
     plt.subplots_adjust(left=0.25, bottom=0.1)
     ymin =  (0.1, 0.1, 0.1) #0.29, 0.3, 0.04)
-    ymax = (6, 5, 0.4)
+    ymax = (6, 6, 0.4)
     ytit="PDF"
    
     for p in range(0,3):
@@ -1107,7 +1188,8 @@ for t in range(0,len(thresholds)):
                props = info_last_merger_kinclass(finalclass, finalgn, finalsgn, selection = kinclasses[i], merger_thresh = thresholds[t])
             true_mergers = np.where(props[0,:] > 0)
             xin = props[p,true_mergers]
-            ax.hist(xin[0], bins=15, range=(xmin[p], xmax[p]), density = True, facecolor=colors[i], histtype='step', linewidth=2, alpha = 0.85, fill=False, edgecolor=colors[i], label=labels[i])
+            #ax.hist(xin[0], bins=15, range=(xmin[p], xmax[p]), density = True, facecolor=colors[i], histtype='step', linewidth=2, alpha = 0.85, fill=False, edgecolor=colors[i], label=labels[i])
+            compute_errors_hist(xin[0], 15, range_input=(xmin[p], xmax[p]), color=colors[i], label=labels[i], pert=pert[i]*0.1, fill=False, edgecolor=colors[i])
         if p == 0:
            xin = [0.3, 0.3]
            yin = [0, 6]
@@ -1121,7 +1203,7 @@ for t in range(0,len(thresholds)):
            ax.text(0.11,5.3, 'minor', color='k')
         if p == 1:
            xin = [0.1, 0.1]
-           yin = [0, 5]
+           yin = [0, 6]
            ax.plot(xin, yin, linestyle='dotted', color='k')
            ax.arrow(0.1, 3.2, 0.18, 0, head_width=0.12, head_length=0.025)
            ax.text(0.1,3.4, 'wet', color='k')

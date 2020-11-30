@@ -897,7 +897,7 @@ common.savefig(obsdir, fig, "DistributionKinClasses_CensSats.pdf")
 # plot distribution of mergers for different kinematic classes
 labels = ('FSR', 'RSR', '2$\sigma$', 'Prol')
 xtit=" "
-ytit="$\\rm N^{sr\\, class}_{mer}/N^{all\\,sr}_{mer}/N_{sr\\,class}$"
+ytit="$\\rm N^{sr\\, class}_{mer}/(N^{all\\,sr}_{mer}\\times N_{sr\\,class}$)"
 fig = plt.figure(figsize=(6,4))
 plt.subplots_adjust(left=0.25, bottom=0.17)
 x_values = ['Major', 'Minor', 'Very', 'NoMer','Dry','Wet']

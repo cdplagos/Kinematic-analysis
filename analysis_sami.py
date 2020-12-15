@@ -619,7 +619,7 @@ mergerdata = np.loadtxt('MergerHistoryCumulative.dat')
 def find_classification(selective = True):
     if(selective):
        classes = np.array([0,1,2,3,4,5])
-       matchedobjs = np.where(successmatching >= 3) #so at least 60% matching success
+       matchedobjs = np.where(successmatching >= 2) #so at least 60% matching success
        print("Number of galaxies classified with a confidence >= 60\%", len(successmatching[matchedobjs]))
        props_success = props[:,matchedobjs]
        props_success = props_success[:,0,:]

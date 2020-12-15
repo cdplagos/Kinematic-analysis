@@ -619,7 +619,7 @@ mergerdata = np.loadtxt('MergerHistoryCumulative.dat')
 def find_classification(selective = True):
     if(selective):
        classes = np.array([0,1,2,3,4,5])
-       matchedobjs = np.where(successmatching >= 2) #so at least 60% matching success
+       matchedobjs = np.where(successmatching >= 3) #so at least 60% matching success
        print("Number of galaxies classified with a confidence >= 60\%", len(successmatching[matchedobjs]))
        props_success = props[:,matchedobjs]
        props_success = props_success[:,0,:]
@@ -796,15 +796,37 @@ mergerhist_srs = find_cumulative_merger_histories(mergerhist_srs, finalgn, final
 
 
 #select all prolates and count their numbers:
-ind = np.where((mergerhist_srs[7,:] == 0) & (finalclass == 3))
+ind = np.where((mergerhist_srs[7,:] == 0) & (finalclass == 2))
 print(finalclass[ind])
 print('Number of SRs prolates with no mergers: ',len(finalclass[ind]))
-ind = np.where((mergerhist_srs[7,:] == 0) & (finalclass == 3))
+ind = np.where((mergerhist_srs[7,:] == 0) & (finalclass == 2))
 print(finalclass[ind])
 print('Number of SRs prolates with no mergers: ',len(finalclass[ind]))
 
-ind = np.where(finalclass == 3)
+ind = np.where(finalclass == 2)
 print('Number of SRs prolates: ', len(finalclass[ind]))
+ind = np.where((finalclass == 2) & (finalsgn <= 0))
+print('Median stellar-to-halo mass prolates: ', np.median(finalmstar[ind]/finalmhalo[ind]), np.mean(finalmstar[ind]/finalmhalo[ind]))
+ind = np.where((finalclass == 1) & (finalsgn <= 0))
+print('Median stellar-to-halo mass RSRs: ', np.median(finalmstar[ind]/finalmhalo[ind]), np.mean(finalmstar[ind]/finalmhalo[ind]))
+ind = np.where((finalclass == 0) & (finalsgn <= 0))
+print('Median stellar-to-halo mass FSRs: ', np.median(finalmstar[ind]/finalmhalo[ind]), np.mean(finalmstar[ind]/finalmhalo[ind]))
+ind = np.where((finalclass <= 2) & (finalsgn <= 0))
+print('Median stellar-to-halo mass all SRs: ', np.median(finalmstar[ind]/finalmhalo[ind]), np.mean(finalmstar[ind]/finalmhalo[ind]), np.std(finalmstar[ind]/finalmhalo[ind]))
+
+
+ind = np.where((mergerhist_srs[11,:] > 0) & (mergerhist_srs[10,:] <= 0) & (finalclass == 2))
+print('Number of SRs prolates with wet mergers: ', len(finalclass[ind]))
+ind = np.where((mergerhist_srs[10,:] > 0) & (finalclass == 2))
+print('Number of SRs prolates with dry mergers: ', len(finalclass[ind]))
+ind = np.where((mergerhist_srs[8,:] > 0) & (mergerhist_srs[9,:] <= 0) & (finalclass == 2))
+print('Number of SRs prolates with minor mergers: ', len(finalclass[ind]))
+ind = np.where((mergerhist_srs[9,:] > 0) & (finalclass == 2))
+print('Number of SRs prolates with major mergers: ', len(finalclass[ind]))
+ind = np.where((mergerhist_srs[0,:] > 0) & (mergerhist_srs[8,:] <= 0) & (mergerhist_srs[9,:] <= 0) & (finalclass == 2))
+print('Number of SRs prolates with very minor mergers: ', len(finalclass[ind]))
+
+
 
 subplots = (131, 132, 133) #, 614, 615, 616)
 mergers_explore = (9, 8, 0, 7, 10, 11)
@@ -1280,12 +1302,12 @@ labels = ['Prol', 'RSR', 'FSR'] #, '2$\sigma$', 'Prol']
 xtitles = [0.5,0.75]
 
 xmin = (-0.02, -0.02, 1)
-xmax = (1, 1.45, 12.2)
+xmax = (1, 1.35, 12.2)
 
 xbinsm = np.array([0.05,0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95])
 dxm=np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
 
-xbinsgas = np.array([0.05,0.2, 0.4, 0.65, 0.95, 1.25])
+xbinsgas = np.array([0.05, 0.2, 0.4, 0.65, 0.95, 1.25])
 dxgas=np.array([0.05, 0.1, 0.1, 0.15, 0.15, 0.15])
 
 xbinst = np.array([1.5, 3.0, 4.5, 6.0, 7.5, 9.0, 10.5, 12.0])
@@ -1324,7 +1346,9 @@ for t in range(0,len(thresholds)):
             true_mergers = np.where(props[0,:] > 0)
             xin = props[p,true_mergers]
             #ax.hist(xin[0], bins=15, range=(xmin[p], xmax[p]), density = True, facecolor=colors[i], histtype='step', linewidth=2, alpha = 0.85, fill=False, edgecolor=colors[i], label=labels[i])
-            compute_errors_hist_arbitrarybins(xin[0], xbins, dx, color=colors[i], label=labels[i], pert=pert[i]*0.25, fill=False, edgecolor=colors[i], alpha=0.85)
+            compute_errors_hist_arbitrarybins(xin[0], xbins, dx, color=colors[i], label=labels[i], pert=pert[i]*0.25, fill=False, edgecolor=colors[i],  fac=0.85, alpha=0.85)
+            #compute_errors_hist(xin[0], 10, range_input=(0,1), color=colors[i], label=labels[i], pert=pert[i]*0.25, fill=False, edgecolor=colors[i],  fac=0.85, alpha=0.85)
+
             ax.plot([-2,-2],[-2,-2],linestyle='solid', linewidth=4, alpha=0.5, color=colors[i], label=labels[i])
         if p == 0:
            xin = [0.3, 0.3]
